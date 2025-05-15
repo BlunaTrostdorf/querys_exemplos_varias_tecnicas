@@ -1,0 +1,40 @@
+--- query com row number e lead organizadas em ctes 
+
+WITH compras_ordenadas AS (
+    SELECT
+        cliente_id,
+        valor,
+        CAST(data_compra AS DATE) AS data_compra,
+        ROW_NUMBER() OVER (PARTITION BY cliente_id ORDER BY data_compra DESC) AS rn,
+        LEAD(CAST(data_compra AS DATE)) OVER (PARTITION BY cliente_id ORDER BY data_compra) AS proxima_data
+    FROM compras
+),
+
+ultima_compra_por_cliente AS (
+    SELECT
+        cliente_id,
+        valor,
+        data_compra
+    FROM compras_ordenadas
+    WHERE rn = 1
+),
+
+diferenca_compras AS (
+    SELECT
+        cliente_id,
+        data_compra,
+        proxima_data,
+        DATE_DIFF('day', data_compra, proxima_data) AS dias_entre_compras
+    FROM compras_ordenadas
+)
+
+-- Você pode escolher o que quer aqui no final!
+SELECT 
+    u.cliente_id,
+    u.valor AS valor_ultima_compra,
+    u.data_compra AS data_ultima_compra,
+    d.dias_entre_compras
+FROM ultima_compra_por_cliente u
+LEFT JOIN diferenca_compras d
+    ON u.cliente_id = d.cliente_id
+    AND u.data_compra = d.data_compra;
