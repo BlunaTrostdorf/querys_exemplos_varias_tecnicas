@@ -38,3 +38,43 @@ FROM ultima_compra_por_cliente u
 LEFT JOIN diferenca_compras d
     ON u.cliente_id = d.cliente_id
     AND u.data_compra = d.data_compra;
+
+
+
+----
+WITH etapas AS (
+    SELECT 
+        person_id.string_value AS cod_idef_pess,
+        anomesdia,
+        event_timestamp,
+        detail.string_value as detail,
+        customer_segment.string_value AS segmento,
+        product_name.string_value as nome_cartao,
+        ROW_NUMBER() OVER (
+            PARTITION BY person_id.string_value 
+            ORDER BY event_timestamp
+        ) AS rn,
+        custom_path.string_value AS url_atual,
+        LEAD(custom_path.string_value) OVER (
+            PARTITION BY person_id.string_value  
+            ORDER BY event_timestamp
+        ) AS proxima_url,
+        event_name,
+        app_id
+    FROM db_corp_canaisassistidos_dadosonoffrtda_sot_01.sot_ga4_oneitau_pf
+    WHERE anomesdia = 20250401
+)
+
+SELECT DISTINCT 
+    et.cod_idef_pess,
+    et.url_atual AS url_inicial,
+    et.proxima_url AS url_seguinte,
+    et.event_name,
+    et.segmento,
+    et.nome_cartao,
+    et.detail 
+FROM etapas et
+WHERE et.proxima_url LIKE '%/emprestimo/%'
+  AND et.proxima_url NOT LIKE '%/consignado/%'
+LIMIT 200;
+
